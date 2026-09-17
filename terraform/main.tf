@@ -39,3 +39,137 @@ resource "aws_subnet" "public_az2" {
     Name = "public-az2"
   }
 }
+
+resource "aws_subnet" "private_app_az1" {
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "10.0.11.0/24"
+  availability_zone = "ap-south-1a"
+
+  tags = {
+    Name = "private-app-az1"
+  }
+}
+
+resource "aws_subnet" "private_app_az2" {
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "10.0.12.0/24"
+  availability_zone = "ap-south-1b"
+
+  tags = {
+    Name = "private-app-az2"
+  }
+}
+
+resource "aws_subnet" "private_db_az1" {
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "10.0.21.0/24"
+  availability_zone = "ap-south-1a"
+
+  tags = {
+    Name = "private-db-az1"
+  }
+}
+
+resource "aws_subnet" "private_db_az2" {
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "10.0.22.0/24"
+  availability_zone = "ap-south-1b"
+
+  tags = {
+    Name = "private-db-az2"
+  }
+}
+
+resource "aws_internet_gateway" "main" {
+  vpc_id = aws_vpc.main.id
+
+  tags = {
+    Name = "main-igw"
+  }
+}
+
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.main.id
+  }
+
+  tags = {
+    Name = "public-route-table"
+  }
+}
+
+resource "aws_route_table_association" "public_az1" {
+  subnet_id      = aws_subnet.public_az1.id
+  route_table_id = aws_route_table.public.id
+}
+
+resource "aws_route_table_association" "public_az2" {
+  subnet_id      = aws_subnet.public_az2.id
+  route_table_id = aws_route_table.public.id
+}
+
+resource "aws_route_table" "private_app" {
+  vpc_id = aws_vpc.main.id
+
+  tags = {
+    Name = "private-app-route-table"
+  }
+}
+
+resource "aws_route_table_association" "private_app_az1" {
+  subnet_id      = aws_subnet.private_app_az1.id
+  route_table_id = aws_route_table.private_app.id
+}
+
+resource "aws_route_table_association" "private_app_az2" {
+  subnet_id      = aws_subnet.private_app_az2.id
+  route_table_id = aws_route_table.private_app.id
+}
+
+resource "aws_route_table" "private_db" {
+  vpc_id = aws_vpc.main.id
+
+  tags = {
+    Name = "private-db-route-table"
+  }
+}
+
+resource "aws_route_table_association" "private_db_az1" {
+  subnet_id      = aws_subnet.private_db_az1.id
+  route_table_id = aws_route_table.private_db.id
+}
+
+resource "aws_route_table_association" "private_db_az2" {
+  subnet_id      = aws_subnet.private_db_az2.id
+  route_table_id = aws_route_table.private_db.id
+}
+
+resource "aws_eip" "nat" {
+  domain = "vpc"
+
+  tags = {
+    Name = "nat-eip"
+  }
+}
+
+resource "aws_nat_gateway" "main" {
+  allocation_id = aws_eip.nat.id
+  subnet_id     = aws_subnet.public_az1.id
+
+  tags = {
+    Name = "main-nat-gateway"
+  }
+
+  depends_on = [
+    aws_internet_gateway.main
+  ]
+}
+
+resource "aws_route" "private_app_nat" {
+  route_table_id         = aws_route_table.private_app.id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.main.id
+}
